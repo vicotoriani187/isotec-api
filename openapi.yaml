@@ -1,0 +1,123 @@
+openapi: 3.1.0
+info:
+  title: ISOTEC Sanierungs-API
+  version: 1.2.0
+  description: >
+    API zur Unterstützung der ISOTEC-Sanierung: Analyse, Preisrechner, Ansprechpartner per Name.
+servers:
+  - url: https://isotec-api.onrender.com
+    description: ISOTEC Render-Backend
+
+paths:
+  /analyse-schaden:
+    post:
+      operationId: analyseSchaden
+      summary: Analysiert das Schadensbild
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                schadensbild:
+                  type: string
+                  example: Salzausblühungen an Wandfuß
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  schadenstyp:
+                    type: string
+                  sanierungsloesung:
+                    type: string
+                  kundenvorteil:
+                    type: string
+
+  /kalkulation:
+    post:
+      operationId: kalkulationBerechnen
+      summary: Berechnet Sanierungskosten
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              oneOf:
+                - properties:
+                    gewerk:
+                      type: string
+                      example: Innenabdichtung
+                    flaeche_qm:
+                      type: number
+                      example: 25
+                - properties:
+                    gewerke:
+                      type: array
+                      items:
+                        type: string
+                      example: ["Horizontalsperre", "Innenabdichtung"]
+                    flaeche_qm:
+                      type: number
+                      example: 12
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      einheitspreis:
+                        type: number
+                      gesamtpreis:
+                        type: number
+                  - type: object
+                    properties:
+                      details:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            gewerk:
+                              type: string
+                            preisProQm:
+                              type: number
+                            teilpreis:
+                              type: number
+                      gesamtpreis:
+                        type: number
+
+  /ansprechpartner-name:
+    get:
+      operationId: ansprechpartnerFindenName
+      summary: Findet Ansprechpartner anhand des Namens
+      parameters:
+        - in: query
+          name: name
+          schema:
+            type: string
+          required: true
+          description: Teilname eines ISOTEC-Ansprechpartners
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  position:
+                    type: string
+                  telefon:
+                    type: string
+                  email:
+                    type: string
