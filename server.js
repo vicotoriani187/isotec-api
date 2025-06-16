@@ -16,6 +16,9 @@ const preise = {
   "Klimaplatte": 300,
   "Klimaplatte-Upgrade": 130,
   "Außenabdichtung": 400
+  "Kellerbodensanierung": 300
+  "Flexband mit Injektion": 590
+  "Balkonsanierung": 1100
 };
 
 // Ansprechpartnerliste (vereinfacht)
@@ -96,3 +99,49 @@ app.get("/ansprechpartner-name", (req, res) => {
 app.listen(port, () => {
   console.log(`ISOTEC API läuft auf Port ${port}`);
 });
+// GPT-gestützte Auswertung (vereinfacht)
+app.post("/generate-auswertung", async (req, res) => {
+  const input = req.body;
+  const { berater, kunde, adresse, objektart, schadensbild, massnahme, horizontalsperre, alternativen } = input;
+
+  const preise = {
+    "Innenabdichtung": 450,
+    "Creme-Injektion": 320
+  };
+
+  // Kalkulation
+  const innen = massnahme.flaeche_qm * preise["Innenabdichtung"];
+  const injektion = horizontalsperre.laenge_m * preise["Creme-Injektion"];
+  const standard = innen + injektion;
+  const variante2 = standard + (alternativen[0]?.flaeche_qm || 0) * (alternativen[0]?.preis_pro_qm || 0);
+  const variante3 = variante2 + (massnahme.flaeche_qm * (alternativen[1]?.aufpreis_pro_qm || 0));
+
+  // Bericht (einfaches Text-Template)
+  const bericht = `
+🧱 Schadensbild:
+${schadensbild}
+
+🔧 Empfohlene Maßnahme:
+${massnahme.beschreibung} (${massnahme.flaeche_qm} m²), ${horizontalsperre.typ} (${horizontalsperre.laenge_m} lfm)
+
+✅ Kundenvorteil:
+– Schutz vor Feuchte von Boden und Wand
+– saubere, trockene Räume
+– 10 Jahre Garantie
+
+💶 Kalkulation:
+Standard: ${standard.toFixed(2)} €
+Variante 2: ${variante2.toFixed(2)} €
+Variante 3: ${variante3.toFixed(2)} €
+
+📍 Objekt: ${adresse}
+👤 Eigentümer: ${kunde}
+🔧 Ansprechpartner: ${berater}
+  `;
+
+  res.json({
+    bericht,
+    kalkulation: { standard, variante2, variante3 }
+  });
+});
+
