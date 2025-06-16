@@ -5,7 +5,8 @@ const app = express();
 const port = process.env.PORT || 10000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 const { generateGptText } = require("./gpt");
 const { generateWord } = require("./export");
@@ -52,7 +53,6 @@ const ansprechpartnerListe = [
   }
 ];
 
-// Analyse-Schaden
 app.post("/analyse-schaden", (req, res) => {
   const { schadensbild } = req.body;
   const schadenstyp = schadensbild.includes("Salz") ? "Salzausblühungen" : "Feuchtewand";
@@ -63,7 +63,6 @@ app.post("/analyse-schaden", (req, res) => {
   res.json({ schadenstyp, sanierungsloesung, kundenvorteil });
 });
 
-// Kalkulation
 app.post("/kalkulation", (req, res) => {
   const { gewerk, gewerke, flaeche_qm } = req.body;
 
@@ -89,7 +88,6 @@ app.post("/kalkulation", (req, res) => {
   return res.status(400).json({ error: "Keine gültigen Parameter." });
 });
 
-// Ansprechpartner nach Name
 app.get("/ansprechpartner-name", (req, res) => {
   const { name } = req.query;
   const match = ansprechpartnerListe.find(a =>
@@ -99,35 +97,31 @@ app.get("/ansprechpartner-name", (req, res) => {
   res.status(404).json({ error: "Kein Ansprechpartner gefunden" });
 });
 
-// GPT-Auswertung mit Word-Erzeugung
 app.post("/generate-auswertung", async (req, res) => {
-  const input = req.body;
-  const { berater, kunde, adresse, objektart, schadensbild, massnahme, horizontalsperre, alternativen } = input;
+  try {
+    const input = req.body;
+    const { berater, kunde, adresse, objektart, schadensbild, massnahme, horizontalsperre, alternativen } = input;
 
-  const innen = massnahme.flaeche_qm * preise["Innenabdichtung"];
-  const injektion = horizontalsperre.laenge_m * preise["Creme-Injektion"];
-  const standard = innen + injektion;
-  const variante2 = standard + (alternativen[0]?.flaeche_qm || 0) * (alternativen[0]?.preis_pro_qm || 0);
-  const variante3 = variante2 + (massnahme.flaeche_qm * (alternativen[1]?.aufpreis_pro_qm || 0));
+    const innen = massnahme.flaeche_qm * preise["Innenabdichtung"];
+    const injektion = horizontalsperre.laenge_m * preise["Creme-Injektion"];
+    const standard = innen + injektion;
+    const variante2 = standard + (alternativen[0]?.flaeche_qm || 0) * (alternativen[0]?.preis_pro_qm || 0);
+    const variante3 = variante2 + (massnahme.flaeche_qm * (alternativen[1]?.aufpreis_pro_qm || 0));
 
-  const kalkulation = { standard, variante2, variante3 };
-  const bericht = await generateGptText(input, kalkulation);
+    const kalkulation = {
+      standard: standard.toFixed(2),
+      variante2: variante2.toFixed(2),
+      variante3: variante3.toFixed(2)
+    };
 
-  // Ansprechpartnerdaten suchen
-  const ap = ansprechpartnerListe.find(a => a.name.toLowerCase().includes(berater.toLowerCase()));
-  const apText = ap ? `${ap.name}\n${ap.position}\n${ap.telefon}\n${ap.email}` : berater;
+    const bericht = await generateGptText(input, kalkulation);
+    const pfad = await generateWord({ ...input, bericht });
 
-  // Word-Dokument generieren
-  const kundenadresse = `${kunde}\n${adresse}`;
-  const einleitung = `Sehr geehrte/r ${kunde.split(" ")[0]},\n\nhiermit erhalten Sie die Auswertung Ihrer Feuchtigkeitsschäden und Empfehlungen zur Sanierung.`;
-  const outputPfad = generateWord({
-    kundenadresse,
-    ansprechpartner: apText,
-    einleitung,
-    auswertungstext: bericht
-  });
-
-  res.json({ bericht, kalkulation, download_url: `/downloads/${path.basename(outputPfad)}` });
+    res.status(200).send({ bericht: bericht.substring(0, 12000), kalkulation, download_url: pfad });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: "Fehler bei der Auswertung." });
+  }
 });
 
 app.listen(port, () => {
