@@ -31,7 +31,7 @@ Stil: empathisch, fachlich, ISOTEC-konform mit Fokus auf Sicherheit, Nachhaltigk
   `.trim();
 
   const res = await openai.chat.completions.create({
-    model: "gpt-4",
+    model: "gpt-4o",
     messages: [{ role: "user", content: prompt }],
     temperature: 0.7,
   });
