@@ -4,12 +4,11 @@ const cors = require("cors");
 const app = express();
 const port = process.env.PORT || 10000;
 
-require("dotenv").config();
-const { generateGptText } = require("./gpt");
-const { generateWord } = require("./export");
-
 app.use(cors());
 app.use(express.json());
+
+const { generateGptText } = require("./gpt");
+const { generateWord } = require("./export");
 
 // Preisliste (netto)
 const preise = {
@@ -100,30 +99,35 @@ app.get("/ansprechpartner-name", (req, res) => {
   res.status(404).json({ error: "Kein Ansprechpartner gefunden" });
 });
 
-// GPT-gestützte Auswertung
+// GPT-Auswertung mit Word-Erzeugung
 app.post("/generate-auswertung", async (req, res) => {
-  try {
-    const input = req.body;
-    const { berater, kunde, adresse, objektart, schadensbild, massnahme, horizontalsperre, alternativen } = input;
+  const input = req.body;
+  const { berater, kunde, adresse, objektart, schadensbild, massnahme, horizontalsperre, alternativen } = input;
 
-    const innen = massnahme.flaeche_qm * preise["Innenabdichtung"];
-    const injektion = horizontalsperre.laenge_m * preise["Creme-Injektion"];
-    const standard = innen + injektion;
-    const variante2 = standard + (alternativen[0]?.flaeche_qm || 0) * (alternativen[0]?.preis_pro_qm || 0);
-    const variante3 = variante2 + (massnahme.flaeche_qm * (alternativen[1]?.aufpreis_pro_qm || 0));
+  const innen = massnahme.flaeche_qm * preise["Innenabdichtung"];
+  const injektion = horizontalsperre.laenge_m * preise["Creme-Injektion"];
+  const standard = innen + injektion;
+  const variante2 = standard + (alternativen[0]?.flaeche_qm || 0) * (alternativen[0]?.preis_pro_qm || 0);
+  const variante3 = variante2 + (massnahme.flaeche_qm * (alternativen[1]?.aufpreis_pro_qm || 0));
 
-    const gptText = await generateGptText(input, { standard, variante2, variante3 });
-    const download_url = await generateWord(gptText);
+  const kalkulation = { standard, variante2, variante3 };
+  const bericht = await generateGptText(input, kalkulation);
 
-    res.json({
-      bericht: gptText,
-      kalkulation: { standard, variante2, variante3 },
-      download_url
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Fehler bei der GPT-Auswertung." });
-  }
+  // Ansprechpartnerdaten suchen
+  const ap = ansprechpartnerListe.find(a => a.name.toLowerCase().includes(berater.toLowerCase()));
+  const apText = ap ? `${ap.name}\n${ap.position}\n${ap.telefon}\n${ap.email}` : berater;
+
+  // Word-Dokument generieren
+  const kundenadresse = `${kunde}\n${adresse}`;
+  const einleitung = `Sehr geehrte/r ${kunde.split(" ")[0]},\n\nhiermit erhalten Sie die Auswertung Ihrer Feuchtigkeitsschäden und Empfehlungen zur Sanierung.`;
+  const outputPfad = generateWord({
+    kundenadresse,
+    ansprechpartner: apText,
+    einleitung,
+    auswertungstext: bericht
+  });
+
+  res.json({ bericht, kalkulation, download_url: `/downloads/${path.basename(outputPfad)}` });
 });
 
 app.listen(port, () => {
