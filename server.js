@@ -1,17 +1,18 @@
-// server.js
 const express = require("express");
 const cors = require("cors");
-const app = express();
-const port = process.env.PORT || 10000;
-
-app.use(cors());
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+const fs = require("fs");
+const path = require("path");
 
 const { generateGptText } = require("./gpt");
 const { generateWord } = require("./export");
 
-// Preisliste (netto)
+const app = express();
+const port = process.env.PORT || 10000;
+
+app.use(cors());
+app.use(express.json());
+
+// Preislisten
 const preise = {
   "Innenabdichtung": 450,
   "Sanierputz": 0,
@@ -25,7 +26,7 @@ const preise = {
   "Balkonsanierung": 1100
 };
 
-// Ansprechpartnerliste (vereinfacht)
+// Ansprechpartnerliste
 const ansprechpartnerListe = [
   {
     name: "Ben Luca Costa",
@@ -53,6 +54,7 @@ const ansprechpartnerListe = [
   }
 ];
 
+// Analyse-Schaden
 app.post("/analyse-schaden", (req, res) => {
   const { schadensbild } = req.body;
   const schadenstyp = schadensbild.includes("Salz") ? "Salzausblühungen" : "Feuchtewand";
@@ -63,6 +65,7 @@ app.post("/analyse-schaden", (req, res) => {
   res.json({ schadenstyp, sanierungsloesung, kundenvorteil });
 });
 
+// Kalkulation
 app.post("/kalkulation", (req, res) => {
   const { gewerk, gewerke, flaeche_qm } = req.body;
 
@@ -88,6 +91,7 @@ app.post("/kalkulation", (req, res) => {
   return res.status(400).json({ error: "Keine gültigen Parameter." });
 });
 
+// Ansprechpartner
 app.get("/ansprechpartner-name", (req, res) => {
   const { name } = req.query;
   const match = ansprechpartnerListe.find(a =>
@@ -97,33 +101,28 @@ app.get("/ansprechpartner-name", (req, res) => {
   res.status(404).json({ error: "Kein Ansprechpartner gefunden" });
 });
 
+// GPT-Auswertung inkl. Word-Datei
 app.post("/generate-auswertung", async (req, res) => {
+  const input = req.body;
+
   try {
-    const input = req.body;
-    const { berater, kunde, adresse, objektart, schadensbild, massnahme, horizontalsperre, alternativen } = input;
+    const gptText = await generateGptText(input, input.kalkulation);
+    if (!gptText) {
+      return res.status(500).json({ error: "GPT-Antwort ist leer." });
+    }
 
-    const innen = massnahme.flaeche_qm * preise["Innenabdichtung"];
-    const injektion = horizontalsperre.laenge_m * preise["Creme-Injektion"];
-    const standard = innen + injektion;
-    const variante2 = standard + (alternativen[0]?.flaeche_qm || 0) * (alternativen[0]?.preis_pro_qm || 0);
-    const variante3 = variante2 + (massnahme.flaeche_qm * (alternativen[1]?.aufpreis_pro_qm || 0));
+    const wordPath = await generateWord(input, gptText);
+    return res.json({
+      bericht: gptText,
+      file: wordPath
+    });
 
-    const kalkulation = {
-      standard: standard.toFixed(2),
-      variante2: variante2.toFixed(2),
-      variante3: variante3.toFixed(2)
-    };
-
-    const bericht = await generateGptText(input, kalkulation);
-    const pfad = await generateWord({ ...input, bericht });
-
-    res.status(200).send({ bericht: bericht.substring(0, 12000), kalkulation, download_url: pfad });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({ error: "Fehler bei der Auswertung." });
+  } catch (error) {
+    console.error("❌ Fehler bei /generate-auswertung:", error.message);
+    return res.status(500).json({ error: "Fehler bei der Auswertung." });
   }
 });
 
 app.listen(port, () => {
-  console.log(`ISOTEC API läuft auf Port ${port}`);
+  console.log(`🚀 ISOTEC-API läuft auf Port ${port}`);
 });
