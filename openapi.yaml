@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: ISOTEC Sanierungs-API
-  version: 1.2.0
+  version: 1.3.0
   description: >
-    API zur Unterstützung der ISOTEC-Sanierung: Analyse, Preisrechner, Ansprechpartner per Name.
+    API zur Unterstützung der ISOTEC-Sanierung: Analyse, Preisrechner, Ansprechpartner per Name, GPT-Auswertung.
 servers:
   - url: https://isotec-api.onrender.com
     description: ISOTEC Render-Backend
@@ -48,15 +48,18 @@ paths:
           application/json:
             schema:
               type: object
+              properties: {}
               oneOf:
-                - properties:
+                - required: [gewerk, flaeche_qm]
+                  properties:
                     gewerk:
                       type: string
                       example: Innenabdichtung
                     flaeche_qm:
                       type: number
                       example: 25
-                - properties:
+                - required: [gewerke, flaeche_qm]
+                  properties:
                     gewerke:
                       type: array
                       items:
@@ -120,4 +123,74 @@ paths:
                   telefon:
                     type: string
                   email:
+                    type: string
+
+  /generate-auswertung:
+    post:
+      operationId: auswertungGenerieren
+      summary: Generiert eine Sanierungsauswertung mit GPT und Word-Bericht
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                berater:
+                  type: string
+                kunde:
+                  type: string
+                adresse:
+                  type: string
+                objektart:
+                  type: string
+                schadensbild:
+                  type: string
+                massnahme:
+                  type: object
+                  properties:
+                    beschreibung:
+                      type: string
+                    flaeche_qm:
+                      type: number
+                horizontalsperre:
+                  type: object
+                  properties:
+                    typ:
+                      type: string
+                    laenge_m:
+                      type: number
+                alternativen:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      bezeichnung:
+                        type: string
+                      flaeche_qm:
+                        type: number
+                      preis_pro_qm:
+                        type: number
+                      aufpreis_pro_qm:
+                        type: number
+      responses:
+        "200":
+          description: Erfolgreich generiert
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bericht:
+                    type: string
+                  kalkulation:
+                    type: object
+                    properties:
+                      standard:
+                        type: number
+                      variante2:
+                        type: number
+                      variante3:
+                        type: number
+                  download_url:
                     type: string
