@@ -13,6 +13,10 @@ const {
 } = require("docx");
 
 exports.generateWord = async (input, gptText) => {
+  if (!gptText || typeof gptText !== "string") {
+    throw new Error("❌ GPT-Text fehlt oder ist ungültig.");
+  }
+
   const kontaktTabelle = new Table({
     rows: [
       new TableRow({
@@ -58,7 +62,7 @@ exports.generateWord = async (input, gptText) => {
         document: {
           run: {
             font: "Century Gothic",
-            size: 22, // 11 pt
+            size: 22,
           },
           paragraph: {
             spacing: { line: 276 },
