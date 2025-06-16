@@ -1,13 +1,13 @@
 const { OpenAI } = require("openai");
 
-// 🔐 Prüfung, ob der API-Key vorhanden ist
-if (!process.env.OPENAI_API_KEY) {
-  throw new Error("❌ OPENAI_API_KEY ist nicht gesetzt – bitte in Render unter 'Environment' eintragen.");
+// Verwende deinen benutzerdefinierten Key-Namen
+const apiKey = process.env["isotec-render"];
+
+if (!apiKey) {
+  throw new Error("❌ API-Key 'isotec-render' ist nicht gesetzt – bitte in Render unter 'Environment' eintragen.");
 }
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const openai = new OpenAI({ apiKey });
 
 exports.generateGptText = async (input, kalkulation) => {
   const prompt = `
@@ -34,7 +34,7 @@ Stil: empathisch, fachlich, ISOTEC-konform
   `;
 
   const res = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4",
     messages: [{ role: "user", content: prompt }],
     temperature: 0.7,
   });
