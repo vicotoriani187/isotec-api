@@ -1,6 +1,13 @@
-require('dotenv').config();
 const { OpenAI } = require("openai");
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// 🔐 Prüfung, ob der API-Key vorhanden ist
+if (!process.env.OPENAI_API_KEY) {
+  throw new Error("❌ OPENAI_API_KEY ist nicht gesetzt – bitte in Render unter 'Environment' eintragen.");
+}
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
 exports.generateGptText = async (input, kalkulation) => {
   const prompt = `
