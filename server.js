@@ -101,31 +101,32 @@ app.get("/ansprechpartner-name", (req, res) => {
   res.status(404).json({ error: "Kein Ansprechpartner gefunden" });
 });
 
-// Auswertung inkl. GPT und Word-Datei
+// GPT-Auswertung inkl. Word-Datei
 app.post("/generate-auswertung", async (req, res) => {
   const input = req.body;
 
   try {
-    console.log("▶️ Anfrage erhalten für:", input.kunde, input.adresse);
+    // 💡 Kalkulation ergänzen
+    const innen = input.massnahme.flaeche_qm * preise["Innenabdichtung"];
+    const injektion = input.horizontalsperre.laenge_m * preise["Creme-Injektion"];
+    const standard = innen + injektion;
+    const variante2 = standard + (input.alternativen?.[0]?.flaeche_qm || 0) * (input.alternativen?.[0]?.preis_pro_qm || 0);
+    const variante3 = variante2 + (input.massnahme.flaeche_qm * (input.alternativen?.[1]?.aufpreis_pro_qm || 0));
+    input.kalkulation = { standard, variante2, variante3 };
 
     const gptText = await generateGptText(input, input.kalkulation);
-    if (!gptText || typeof gptText !== "string") {
-      throw new Error("GPT-Antwort ungültig oder leer");
+    if (!gptText) {
+      return res.status(500).json({ error: "GPT-Antwort ist leer." });
     }
 
     const wordPath = await generateWord(input, gptText);
-    if (!wordPath) {
-      throw new Error("Word-Datei konnte nicht erzeugt werden.");
-    }
-
-    res.json({
+    return res.json({
       bericht: gptText,
-      download_url: `/download/${path.basename(wordPath)}`,
+      file: wordPath
     });
-
-  } catch (err) {
-    console.error("❌ Fehler bei /generate-auswertung:", err.message);
-    res.status(500).json({ error: "Fehler bei der Auswertung." });
+  } catch (error) {
+    console.error("❌ Fehler bei /generate-auswertung:", error.message);
+    return res.status(500).json({ error: "Fehler bei der Auswertung." });
   }
 });
 
