@@ -9,14 +9,10 @@ const {
   Table,
   TableRow,
   TableCell,
-  WidthType
+  WidthType,
 } = require("docx");
 
 exports.generateWord = async (input, gptText) => {
-  if (!gptText || typeof gptText !== "string") {
-    throw new Error("Ungültiger GPT-Text für Word-Dokument");
-  }
-
   const doc = new Document({
     styles: {
       default: {
@@ -31,57 +27,56 @@ exports.generateWord = async (input, gptText) => {
         },
       },
     },
-  });
-
-  const kontaktTabelle = new Table({
-    rows: [
-      new TableRow({
+    sections: [
+      {
         children: [
-          new TableCell({
-            width: { size: 50, type: WidthType.PERCENTAGE },
-            children: [
-              new Paragraph({
+          new Table({
+            rows: [
+              new TableRow({
                 children: [
-                  new TextRun({ text: input.kunde || "", bold: true }),
-                  new TextRun({ text: `\n${input.adresse || ""}` }),
+                  new TableCell({
+                    width: { size: 50, type: WidthType.PERCENTAGE },
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({ text: input.kunde, bold: true }),
+                          new TextRun({ text: `\n${input.adresse}` }),
+                        ],
+                      }),
+                    ],
+                  }),
+                  new TableCell({
+                    width: { size: 50, type: WidthType.PERCENTAGE },
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.RIGHT,
+                        children: [
+                          new TextRun({ text: input.berater?.name || "N.N.", bold: true }),
+                          new TextRun({ text: `\n${input.berater?.position || ""}` }),
+                          new TextRun({ text: `\nTel: ${input.berater?.telefon || ""}` }),
+                          new TextRun({ text: `\nE-Mail: ${input.berater?.email || ""}` }),
+                        ],
+                      }),
+                    ],
+                  }),
                 ],
               }),
             ],
+            width: { size: 100, type: WidthType.PERCENTAGE },
           }),
-          new TableCell({
-            width: { size: 50, type: WidthType.PERCENTAGE },
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                children: [
-                  new TextRun({ text: input.berater?.name || "", bold: true }),
-                  new TextRun({ text: `\n${input.berater?.position || ""}` }),
-                  new TextRun({ text: `\nTel: ${input.berater?.telefon || ""}` }),
-                  new TextRun({ text: `\nE-Mail: ${input.berater?.email || ""}` }),
-                ],
-              }),
-            ],
+          new Paragraph({ text: "", spacing: { after: 200 } }),
+          new Paragraph({
+            children: (gptText || "Keine Auswertung verfügbar.").split("\n").map(line =>
+              new TextRun({ text: line, break: 1 })
+            ),
           }),
         ],
-      }),
-    ],
-    width: { size: 100, type: WidthType.PERCENTAGE },
-  });
-
-  const gptAbschnitt = new Paragraph({
-    children: gptText.split("\n").map(line => new TextRun({ text: line, break: 1 })),
-  });
-
-  doc.addSection({
-    children: [
-      kontaktTabelle,
-      new Paragraph({ text: "", spacing: { after: 200 } }),
-      gptAbschnitt
+      },
     ],
   });
 
   const buffer = await Packer.toBuffer(doc);
-  const filename = `downloads/Sanierungsauswertung_ISOTEC_${Date.now()}.docx`;
+  const filename = `downloads/Sanierungsauswertung_${Date.now()}.docx`;
   fs.writeFileSync(path.resolve(filename), buffer);
   return filename;
 };
