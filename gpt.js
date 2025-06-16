@@ -14,10 +14,10 @@ Erstelle eine ISOTEC-Sanierungsauswertung:
 - Eigentümer: ${input.kunde}
 - Ansprechpartner: ${input.berater?.name || "N.N."}
 - Schadensbild: ${input.schadensbild}
-- Maßnahme: ${input.massnahme.beschreibung}, ${input.massnahme.flaeche_qm} m²
-- Injektion: ${input.horizontalsperre.laenge_m} lfm
-- Varianten: ${input.alternativen?.map(a => a.bezeichnung).join(", ")}
-- Preise: Standard ${kalkulation.standard} €, Variante 2 ${kalkulation.variante2} €, Variante 3 ${kalkulation.variante3} €
+- Maßnahme: ${input.massnahme?.beschreibung || "n/a"}, ${input.massnahme?.flaeche_qm || 0} m²
+- Injektion: ${input.horizontalsperre?.laenge_m || 0} lfm
+- Varianten: ${(input.alternativen || []).map(a => a.bezeichnung).join(", ") || "Keine"}
+- Preise: Standard ${kalkulation?.standard || 0} €, Variante 2 ${kalkulation?.variante2 || 0} €, Variante 3 ${kalkulation?.variante3 || 0} €
 
 Bitte gegliedert in:
 1. Schadensbild
@@ -27,7 +27,7 @@ Bitte gegliedert in:
 5. Hinweis Visualisierung
 6. Nächster Schritt
 
-Stil: empathisch, fachlich, ISOTEC-konform
+Stil: empathisch, fachlich, ISOTEC-konform mit Fokus auf Sicherheit, Nachhaltigkeit und Werterhalt.
   `.trim();
 
   const res = await openai.chat.completions.create({
