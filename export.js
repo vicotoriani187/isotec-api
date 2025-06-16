@@ -1,56 +1,70 @@
 const fs = require("fs");
 const path = require("path");
-const { Document, Packer, Paragraph, TextRun } = require("docx");
+const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType } = require("docx");
 
-exports.generateWord = ({ kundenadresse, ansprechpartner, einleitung, auswertungstext }) => {
+exports.generateWord = async (input, gptText) => {
   const doc = new Document({
     styles: {
-      paragraphStyles: [
-        {
-          id: "Standard",
-          name: "Standard",
+      default: {
+        document: {
           run: {
             font: "Century Gothic",
-            size: 22,
+            size: 22, // 11 pt = 22 half-points
           },
           paragraph: {
-            spacing: { line: 276 },
+            spacing: { line: 276 }, // ca. 1,15 Zeilenabstand
           },
         },
-      ],
+      },
     },
   });
 
-  doc.addSection({
-    properties: {},
-    children: [
-      // Kundenadresse links oben
-      new Paragraph({
-        children: kundenadresse.split("\n").map(zeile => new TextRun({ text: zeile, break: 1 })),
-        alignment: "left",
+  // Brieffeld Tabelle: links Kundendaten, rechts Ansprechpartner
+  const kontaktTabelle = new Table({
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: input.kunde, bold: true }),
+                  new TextRun({ text: `\n${input.adresse}` }),
+                ],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                  new TextRun({ text: input.berater.name, bold: true }),
+                  new TextRun({ text: `\n${input.berater.position}` }),
+                  new TextRun({ text: `\nTel: ${input.berater.telefon}` }),
+                  new TextRun({ text: `\nE-Mail: ${input.berater.email}` }),
+                ],
+              }),
+            ],
+          }),
+        ],
       }),
-      new Paragraph({ text: "", spacing: { after: 300 } }),
-
-      // Ansprechpartner rechts oben
-      new Paragraph({
-        children: ansprechpartner.split("\n").map(zeile => new TextRun({ text: zeile, break: 1 })),
-        alignment: "right",
-      }),
-      new Paragraph({ text: "", spacing: { after: 300 } }),
-
-      // Einleitung
-      new Paragraph(einleitung),
-      new Paragraph({ text: "", spacing: { after: 200 } }),
-
-      // Auswertung
-      ...auswertungstext.split("\n").map(line => new Paragraph(line)),
     ],
+    width: { size: 100, type: WidthType.PERCENTAGE },
   });
 
-  const outputPath = path.join(__dirname, "downloads", "Sanierungsbericht_ISOTEC.docx");
-  const bufferPromise = Packer.toBuffer(doc);
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  bufferPromise.then(buffer => fs.writeFileSync(outputPath, buffer));
+  const gptAbschnitt = new Paragraph({
+    children: gptText.split("\n").map(line => new TextRun({ text: line, break: 1 })),
+  });
 
-  return outputPath;
+  doc.addSection({
+    children: [kontaktTabelle, new Paragraph({ text: "", spacing: { after: 200 } }), gptAbschnitt],
+  });
+
+  const buffer = await Packer.toBuffer(doc);
+  const filename = `downloads/Sanierungsauswertung_${Date.now()}.docx`;
+  fs.writeFileSync(path.resolve(filename), buffer);
+  return filename;
 };
