@@ -1,25 +1,18 @@
 const fs = require("fs");
 const path = require("path");
-const { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, WidthType } = require("docx");
+const {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  AlignmentType,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType
+} = require("docx");
 
 exports.generateWord = async (input, gptText) => {
-  const doc = new Document({
-    styles: {
-      default: {
-        document: {
-          run: {
-            font: "Century Gothic",
-            size: 22, // 11 pt = 22 half-points
-          },
-          paragraph: {
-            spacing: { line: 276 }, // ca. 1,15 Zeilenabstand
-          },
-        },
-      },
-    },
-  });
-
-  // Brieffeld Tabelle: links Kundendaten, rechts Ansprechpartner
   const kontaktTabelle = new Table({
     rows: [
       new TableRow({
@@ -55,12 +48,33 @@ exports.generateWord = async (input, gptText) => {
     width: { size: 100, type: WidthType.PERCENTAGE },
   });
 
-  const gptAbschnitt = new Paragraph({
-    children: gptText.split("\n").map(line => new TextRun({ text: line, break: 1 })),
-  });
+  const gptAbschnitt = gptText
+    .split("\n")
+    .map(line => new Paragraph({ children: [new TextRun({ text: line })] }));
 
-  doc.addSection({
-    children: [kontaktTabelle, new Paragraph({ text: "", spacing: { after: 200 } }), gptAbschnitt],
+  const doc = new Document({
+    styles: {
+      default: {
+        document: {
+          run: {
+            font: "Century Gothic",
+            size: 22, // 11 pt
+          },
+          paragraph: {
+            spacing: { line: 276 },
+          },
+        },
+      },
+    },
+    sections: [
+      {
+        children: [
+          kontaktTabelle,
+          new Paragraph({ text: "", spacing: { after: 200 } }),
+          ...gptAbschnitt,
+        ],
+      },
+    ],
   });
 
   const buffer = await Packer.toBuffer(doc);
