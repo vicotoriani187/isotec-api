@@ -1,77 +1,56 @@
 const fs = require("fs");
 const path = require("path");
-const { Document, Packer, Paragraph, TextRun, AlignmentType } = require("docx");
+const { Document, Packer, Paragraph, TextRun } = require("docx");
 
-exports.generateWord = async (text, kunde, adresse, ansprechpartner) => {
+exports.generateWord = ({ kundenadresse, ansprechpartner, einleitung, auswertungstext }) => {
   const doc = new Document({
     styles: {
-      default: {
-        document: {
+      paragraphStyles: [
+        {
+          id: "Standard",
+          name: "Standard",
           run: {
             font: "Century Gothic",
-            size: 22, // 11pt
+            size: 22,
+          },
+          paragraph: {
+            spacing: { line: 276 },
           },
         },
-      },
+      ],
     },
-    sections: [
-      {
-        children: [
-          // Kundenadresse links
-          new Paragraph({
-            alignment: AlignmentType.LEFT,
-            spacing: { after: 200 },
-            children: [
-              new TextRun({ text: kunde, bold: true }),
-              new TextRun({ text: `\n${adresse}` }),
-            ],
-          }),
+  });
 
-          // Ansprechpartner rechts
-          new Paragraph({
-            alignment: AlignmentType.RIGHT,
-            spacing: { after: 300 },
-            children: [
-              new TextRun({ text: ansprechpartner.name, bold: true }),
-              new TextRun({ text: `\n${ansprechpartner.position}` }),
-              new TextRun({ text: `\n${ansprechpartner.telefon}` }),
-              new TextRun({ text: `\n${ansprechpartner.email}` }),
-            ],
-          }),
+  doc.addSection({
+    properties: {},
+    children: [
+      // Kundenadresse links oben
+      new Paragraph({
+        children: kundenadresse.split("\n").map(zeile => new TextRun({ text: zeile, break: 1 })),
+        alignment: "left",
+      }),
+      new Paragraph({ text: "", spacing: { after: 300 } }),
 
-          // Titel
-          new Paragraph({
-            spacing: { after: 200 },
-            children: [
-              new TextRun({ text: "Sanierungsauswertung", bold: true, size: 26 }),
-            ],
-          }),
+      // Ansprechpartner rechts oben
+      new Paragraph({
+        children: ansprechpartner.split("\n").map(zeile => new TextRun({ text: zeile, break: 1 })),
+        alignment: "right",
+      }),
+      new Paragraph({ text: "", spacing: { after: 300 } }),
 
-          // Textgliederung
-          ...text
-            .split("\n")
-            .filter((line) => line.trim() !== "")
-            .map((line) =>
-              new Paragraph({
-                spacing: { after: 150 },
-                children: [new TextRun({ text: line })],
-              })
-            ),
+      // Einleitung
+      new Paragraph(einleitung),
+      new Paragraph({ text: "", spacing: { after: 200 } }),
 
-          // Fußzeile
-          new Paragraph({ spacing: { after: 400 } }),
-          new Paragraph({
-            alignment: AlignmentType.RIGHT,
-            children: [new TextRun({ text: "ISOTEC", bold: true })],
-          }),
-        ],
-      },
+      // Auswertung
+      ...auswertungstext.split("\n").map(line => new Paragraph(line)),
     ],
   });
 
-  const buffer = await Packer.toBuffer(doc);
-  const filename = `ISOTEC_Bericht_${Date.now()}.docx`;
-  const filePath = path.join(__dirname, "./downloads", filename);
-  fs.writeFileSync(filePath, buffer);
+  const outputPath = path.join(__dirname, "downloads", "Sanierungsbericht_ISOTEC.docx");
+  const bufferPromise = Packer.toBuffer(doc);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  bufferPromise.then(buffer => fs.writeFileSync(outputPath, buffer));
 
-  return `/downloads/${filen
+  return outputPath;
+};
