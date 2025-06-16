@@ -101,25 +101,31 @@ app.get("/ansprechpartner-name", (req, res) => {
   res.status(404).json({ error: "Kein Ansprechpartner gefunden" });
 });
 
-// GPT-Auswertung inkl. Word-Datei
+// Auswertung inkl. GPT und Word-Datei
 app.post("/generate-auswertung", async (req, res) => {
   const input = req.body;
 
   try {
+    console.log("▶️ Anfrage erhalten für:", input.kunde, input.adresse);
+
     const gptText = await generateGptText(input, input.kalkulation);
-    if (!gptText) {
-      return res.status(500).json({ error: "GPT-Antwort ist leer." });
+    if (!gptText || typeof gptText !== "string") {
+      throw new Error("GPT-Antwort ungültig oder leer");
     }
 
     const wordPath = await generateWord(input, gptText);
-    return res.json({
+    if (!wordPath) {
+      throw new Error("Word-Datei konnte nicht erzeugt werden.");
+    }
+
+    res.json({
       bericht: gptText,
-      file: wordPath
+      download_url: `/download/${path.basename(wordPath)}`,
     });
 
-  } catch (error) {
-    console.error("❌ Fehler bei /generate-auswertung:", error.message);
-    return res.status(500).json({ error: "Fehler bei der Auswertung." });
+  } catch (err) {
+    console.error("❌ Fehler bei /generate-auswertung:", err.message);
+    res.status(500).json({ error: "Fehler bei der Auswertung." });
   }
 });
 
