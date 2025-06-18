@@ -8,27 +8,31 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 exports.generateGptText = async (input, kalkulation) => {
   const prompt = `
-Erstelle eine ISOTEC-Sanierungsauswertung:
+Erstelle eine ISOTEC-Sanierungsauswertung im Stil eines Sachverständigen:
 
-- Objektadresse: ${input.adresse}
+Objektdaten:
+- Adresse: ${input.adresse}
 - Eigentümer: ${input.kunde}
 - Ansprechpartner: ${input.berater?.name || "N.N."}
+
+Sanierungsdaten:
 - Schadensbild: ${input.schadensbild}
-- Maßnahme: ${input.massnahme?.beschreibung || "unbekannt"}, ${input.massnahme?.flaeche_qm ?? 0} m²
-- Injektion: ${input.horizontalsperre?.laenge_m ?? 0} lfm
+- Maßnahme: ${input.massnahme?.beschreibung || "unbekannt"} (${input.massnahme?.flaeche_qm ?? 0} m²)
+- Horizontalsperre: ${input.horizontalsperre?.laenge_m ?? 0} lfm
 - Varianten: ${input.alternativen?.map(a => a.bezeichnung).join(", ") || "keine"}
 - Preise: Standard ${kalkulation.standard} €, Variante 2 ${kalkulation.variante2} €, Variante 3 ${kalkulation.variante3} €
 
-Bitte gegliedert in:
-1. Schadensbild
-2. Maßnahme
-3. Kundenvorteil
-4. Kalkulation
-5. Hinweis Visualisierung
-6. Nächster Schritt
+Bitte strukturiert formulieren, gutachterlich, mit klarer Kundennutzenbetonung.
 
-Stil: empathisch, fachlich, ISOTEC-konform
-`.trim();
+### Gliederung (bitte mit Überschriften):
+1. Schadensbild (kurze Analyse, sachlich)
+2. Empfohlene Maßnahme (fachlich, ISOTEC-System benennen)
+3. Kundenvorteil (stichpunktartig oder als Fließtext)
+4. Kalkulation (kurz + Vergleich Varianten)
+5. Hinweis auf Visualisierung (optional)
+6. Abschluss und nächster Schritt (empfehlend, vertrauensfördernd)
+
+Verwende **empathischen, gut lesbaren Stil** mit klarer fachlicher Sprache. Fokus auf **Wertsteigerung, Gesundheit, Werterhalt, Sicherheit**.`.trim();
 
   const res = await openai.chat.completions.create({
     model: "gpt-4",
