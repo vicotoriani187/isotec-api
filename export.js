@@ -19,7 +19,7 @@ exports.generateWord = async (input, gptText) => {
         document: {
           run: {
             font: "Century Gothic",
-            size: 22,
+            size: 22  // entspricht etwa 11pt
           },
           paragraph: {
             spacing: { line: 276 },
@@ -65,11 +65,13 @@ exports.generateWord = async (input, gptText) => {
             width: { size: 100, type: WidthType.PERCENTAGE },
           }),
           new Paragraph({ text: "", spacing: { after: 200 } }),
-          new Paragraph({
-            children: (gptText || "Keine Auswertung verfügbar.").split("\n").map(line =>
-              new TextRun({ text: line, break: 1 })
-            ),
-          }),
+          ...gptText.split("\n").map(line =>
+            new Paragraph({
+              children: [
+                new TextRun({ text: line })
+              ]
+            })
+          )
         ],
       },
     ],
